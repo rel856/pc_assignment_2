@@ -7,6 +7,7 @@
 void mandelbrot(int m, int n, double x1, double x2, double y1, double y2,
                 int max_iter, int *picture /* out */, int rank, int size)
 {
+    //Each process computes a portion (divided horizontally by columns)
     int i_start = rank * m / size;
     int i_end = (rank + 1) * m / size;
 
@@ -57,9 +58,9 @@ int main(int argc, char **argv)
         m        = atoi(argv[1]);
         n        = atoi(argv[2]);
         max_iter = atoi(argv[3]);
-        x1       = atof(argv[4]);
+        x1       = atof(argv[4]) * -2;
         x2       = atof(argv[5]);
-        y1       = atof(argv[6]);
+        y1       = atof(argv[6]) * -2;
         y2       = atof(argv[7]);
     }
 
@@ -81,29 +82,40 @@ int main(int argc, char **argv)
     // Call the mandelbrot function on each process
     printf("rank %d, received param: %i %i %i %f %f %f %f\n", rank, m, n ,max_iter, x1, x2, y1, y2);
     mandelbrot(m, n, x1, x2, y1, y2, max_iter, picture, rank, size);
+    
     int *full_picture = NULL;
-
+    int *displs = NULL;
+    int *recvcounts = NULL;
     if (rank == 0) {
         full_picture = malloc(m * n * sizeof(int));
+        displs = malloc(size * sizeof(int));
+        recvcounts = malloc(size * sizeof(int));
+        for (int i = 0; i < size; i++) {
+            displs[i] = i * m / size * n;
+            recvcounts[i] = (i + 1) * m / size * n - displs[i];
+        }
     }
-
 
     int i_start = rank * m / size;
     int i_end = (rank + 1) * m / size;
-    MPI_Gather(picture + i_start * n, (i_end - i_start) * n, MPI_INT, 
-        full_picture, (i_end - i_start) * n, MPI_INT, 0, MPI_COMM_WORLD);
+
+    //Gatherv instead of gather because number of points may differ by processes
+    MPI_Gatherv(picture, (i_end - i_start) * n, MPI_INT, 
+        full_picture, recvcounts, displs, MPI_INT, 0, MPI_COMM_WORLD);
+
     if (rank == 0) {
-        /* Write pgm to stderr. */
+        // Write pgm to stderr. 
         fprintf(stderr, "P2\n");
         fprintf(stderr, "%d %d\n", m, n);
         fprintf(stderr, "%d\n", max_iter);
         for (int i = 0; i < m; i++) {
             for (int j = 0; j < n; j++) {
-                fprintf(stderr, "%d ", full_picture[i * n + j]);
+                fprintf(stderr, "%d ", full_picture[j * m + i]);
             }
             fprintf(stderr, "\n");
         }
     }
+
 
 
     free(picture);
