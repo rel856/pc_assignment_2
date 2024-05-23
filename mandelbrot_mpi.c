@@ -58,9 +58,9 @@ int main(int argc, char **argv)
         m        = atoi(argv[1]);
         n        = atoi(argv[2]);
         max_iter = atoi(argv[3]);
-        x1       = atof(argv[4]) * -2;
+        x1       = atof(argv[4]);
         x2       = atof(argv[5]);
-        y1       = atof(argv[6]) * -2;
+        y1       = atof(argv[6]);
         y2       = atof(argv[7]);
     }
 
